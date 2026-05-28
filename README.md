@@ -1,21 +1,20 @@
 # Online Quiz Microservices System
 
-He thong thi trac nghiem theo kien truc microservices.  
-This project implements an online quiz platform using a microservices architecture.
+Hệ thống thi trắc nghiệm theo kiến trúc microservices.
 
 ## Team Members
 
 | Name | Student ID | Role | Contribution |
 |------|------------|------|-------------|
 | Nguyen Minh Hong | B22DCCN409 | TV1 | Exam Service (question bank, exam management) |
-| (Update) | (Update) | TV2 | Submission Service (exam session, grading) |
-| (Update) | (Update) | TV3 | Statistics Service + Teacher analytics dashboard |
+| Phung Trung Kien | B22DCCN433 | TV2 | Submission Service (exam session, grading) |
+| Kim Duy Hung | B22DCCN400 | TV3 | Statistics Service + Teacher analytics dashboard |
 
 ## Business Scope
 
 - **Actors / Tac nhan**: Teacher, Student.
-- **Teacher flow**: tao cau hoi, tao de thi, cong bo/dong de, xem thong ke ket qua.
-- **Student flow**: bat dau lam bai, luu dap an, nop bai, xem ket qua.
+- **Teacher flow**: tạo câu hỏi, tạo đề thi, công bố/ đóng đề, xem thống kê kết quả.
+- **Student flow**: bắt đầu làm bài, lưu đáp án, nộp bài, xem kết quả.
 - **System goal**: tach nghiep vu theo service de de phat trien, test va trien khai.
 
 ## Architecture

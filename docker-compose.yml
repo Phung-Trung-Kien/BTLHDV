@@ -1,0 +1,139 @@
+# Docker Compose — Hệ Thống Thi Trắc Nghiệm Online
+# Chạy: docker compose up --build
+# Tech stack: Java Spring Boot 3 + MySQL 8.0 + Nginx
+
+services:
+
+  # ─── API Gateway (Nginx) ───────────────────────────────
+  gateway:
+    build: ./gateway
+    ports:
+      - "${GATEWAY_PORT:-8080}:80"
+    depends_on:
+      - exam-service
+      - submission-service
+    networks:
+      - app-network
+
+  # ─── Exam Service (TV1) ────────────────────────────────
+  exam-service:
+    build: ./services/exam-service
+    ports:
+      - "${EXAM_SERVICE_PORT:-5001}:8080"
+    environment:
+      DB_HOST: exam-db
+      DB_PORT: 3306
+      DB_NAME: exam_db
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-changeme}
+    depends_on:
+      exam-db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  # ─── Submission Service (TV2) ──────────────────────────
+  submission-service:
+    build: ./services/submission-service
+    ports:
+      - "${SUBMISSION_SERVICE_PORT:-5002}:8080"
+    environment:
+      DB_HOST: submission-db
+      DB_PORT: 3306
+      DB_NAME: submission_db
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      EXAM_SERVICE_URL: http://exam-service:8080
+    depends_on:
+      submission-db:
+        condition: service_healthy
+      exam-service:
+        condition: service_started
+    networks:
+      - app-network
+
+  # ─── Database: Exam (MySQL) ────────────────────────────
+  exam-db:
+    image: mysql:8.0
+    ports:
+      - "${EXAM_DB_PORT:-3308}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-changeme}
+      MYSQL_DATABASE: exam_db
+      MYSQL_ROOT_HOST: "%"
+    volumes:
+      - exam-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-changeme}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - app-network
+
+  # ─── Database: Submission (MySQL) ──────────────────────
+  submission-db:
+    image: mysql:8.0
+    ports:
+      - "${SUBMISSION_DB_PORT:-3307}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-changeme}
+      MYSQL_DATABASE: submission_db
+      MYSQL_ROOT_HOST: "%"
+    volumes:
+      - submission-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-changeme}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - app-network
+
+  # ─── Statistics Service (TV3) ──────────────────────────
+  statistics-service:
+    build: ./services/statistics-service
+    ports:
+      - "${STATISTICS_SERVICE_PORT:-5003}:8080"
+    environment:
+      SUBMISSION_SERVICE_URL: http://submission-service:8080
+    depends_on:
+      - submission-service
+    networks:
+      - app-network
+
+  # ─── Frontend (Vite) ────────────────────────────────
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      DOCKER_ENV: "true"
+      VITE_PROXY_EXAM_TARGET: http://exam-service:8080
+      VITE_PROXY_SUB_TARGET: http://submission-service:8080
+      VITE_PROXY_STATS_TARGET: http://statistics-service:8080
+    depends_on:
+      - gateway
+      - exam-service
+      - submission-service
+      - statistics-service
+    command: >
+      sh -c "
+      until wget -q -O - http://exam-service:8080/actuator/health >/dev/null 2>&1; do echo 'waiting exam-service...'; sleep 2; done;
+      until wget -q -O - http://submission-service:8080/health >/dev/null 2>&1; do echo 'waiting submission-service...'; sleep 2; done;
+      until wget -q -O - http://statistics-service:8080/health >/dev/null 2>&1; do echo 'waiting statistics-service...'; sleep 2; done;
+      npm run dev -- --host 0.0.0.0 --port 3000
+      "
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  exam-db-data:
+  submission-db-data:
